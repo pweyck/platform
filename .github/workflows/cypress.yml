@@ -12,11 +12,11 @@ jobs:
     container: shopware/development:7.4
     continue-on-error: true
     strategy:
-        matrix: 
+        matrix:
             test-directory: ["cypress/integration/content/**/*", "cypress/integration/catalogue/**/*", "cypress/integration/customer/**/*", "cypress/integration/media-marketing/**/*", "cypress/integration/general/**/*", "cypress/integration/order/**/*", "cypress/integration/rule-product-stream/**/*", "cypress/integration/settings/**/*"]
     env:
       DEVELOPMENT_BRANCH: master
-   
+
     services:
         mysql:
          image: mysql:5.7
@@ -35,7 +35,7 @@ jobs:
 
     - name: Fix platform for composer
       run: |
-        apt-get update && apt-get install -y xvfb
+        apt-get update && apt-get install -y libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb
         export WEB_DOCUMENT_ROOT=$(pwd)/development/public
         /entrypoint supervisord > /dev/null 2>&1 &
         cd development/platform
@@ -69,8 +69,8 @@ jobs:
           cd development
           chown -R 1000:1000 .
           export CYPRESS_baseUrl=http://localhost:8000
-          npm --prefix vendor/shopware/platform/src/Administration/Resources/app/administration/test/e2e run cy:run:chrome -- --spec "${{ matrix.test-directory }}" --config numTestsKeptInMemory=0 --env grep=@base --headless	
-    
+          npm --prefix vendor/shopware/platform/src/Administration/Resources/app/administration/test/e2e run cy:run:chrome -- --spec "${{ matrix.test-directory }}" --config numTestsKeptInMemory=0 --env grep=@base --headless
+
     - uses: actions/upload-artifact@v2
       if: failure()
       with:
@@ -78,7 +78,7 @@ jobs:
         path: |
             development/platform/src/Administration/Resources/app/administration/test/app/build
             development/var/logs
-        
+
   Storefront:
     runs-on: ubuntu-latest
     container: shopware/development:7.4
@@ -104,7 +104,7 @@ jobs:
 
     - name: Fix platform for composer
       run: |
-        apt-get update && apt-get install -y xvfb
+        apt-get update && apt-get install -y libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb
         export WEB_DOCUMENT_ROOT=$(pwd)/development/public
         /entrypoint supervisord > /dev/null 2>&1 &
         cd development/platform
