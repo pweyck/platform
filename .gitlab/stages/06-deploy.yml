@@ -64,6 +64,7 @@ github sync:
         name: Github
         url: https://github.com/shopware
     variables:
+        GIT_STRATEGY: clone
         GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project
     script:
       - apt update && apt install -y git
