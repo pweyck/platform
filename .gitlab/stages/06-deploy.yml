@@ -49,3 +49,25 @@ Repository Split:
               git remote set-url origin https://bot:${PERSONAL_TOKEN}@gitlab.shopware.com/shopware/6/product/many-repositories/$(echo $pkg | awk '{print tolower($0)}').git
               git push origin $SHA1:refs/heads/${CI_COMMIT_BRANCH} -f -u
             done
+
+github sync:
+    extends: .base-no-setup
+    stage: deploy
+    image: debian:buster-slim
+    needs: []
+    # TODO: re-enable after test
+    #rules:
+      # only split on protected branches, e.g.: nightly trunk, release versions or saas-release
+    #  - if: '$CI_COMMIT_REF_PROTECTED != "true"'
+    #    when: 'never'
+    environment:
+        name: Github
+        url: https://github.com/shopware
+    variables:
+        GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project
+    script:
+      - apt update && apt install -y git
+      # split repositories
+      - git remote add github https://pweyck:${GITHUB_SYNC_TOKEN}@github.com/pweyck/platform
+      - git fetch github
+      - .gitlab/bin/git_sync.bash origin github
