@@ -1,7 +1,7 @@
 name: Playwright Tests
 on:
   push:
-    branches: [ main, master ]
+    branches: [ trunk ]
   pull_request:
 
 permissions:
@@ -48,10 +48,19 @@ jobs:
       -
         name: Build and push
         uses: docker/build-push-action@v5
+        if: ${{ !github.ref_protected }}
         with:
           context: .
           push: true
           tags: ghcr.io/${{ github.repository }}/ci-e2e:${{ github.run_id }}
+          file: .gitlab/docker/dev/Dockerfile
+      - name: Build and push trunk
+        uses: docker/build-push-action@v5
+        if: ${{ github.ref_protected }}
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}/ci-e2e:${{ github.run_id }},ghcr.io/${{ github.repository }}/ci-e2e:${{ github.ref_name }}
           file: .gitlab/docker/dev/Dockerfile
 
   playwright:
