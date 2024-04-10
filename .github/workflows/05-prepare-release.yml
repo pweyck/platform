@@ -1,0 +1,101 @@
+name: Prepare release
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        # if: github.ref_protected && github.repository == 'shopware/shopware'
+        # container:
+        #   image: ghcr.io/catthehacker/ubuntu:act-22.04
+        env:
+            SHOPWARE_ADMIN_SKIP_SOURCEMAP_GENERATION: "1"
+            DATABASE_URL: mysql://root:root@127.0.0.1:3306/root
+        services:
+            database:
+                image: mysql:8.0
+                env:
+                    MYSQL_ROOT_PASSWORD: root
+                    MYSQL_DATABASE: root
+                options: '--mount="type=tmpfs,destination=/var/lib/mysql" --health-cmd="mysqladmin ping -h 127.0.0.1" --health-interval=5s --health-timeout=2s --health-retries=3'
+                ports:
+                - "3306:3306"
+        steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+            fetch-depth: '0'
+            fetch-tags: 'true'
+        - name: Setup PHP
+          uses: shivammathur/setup-php@v2
+          with:
+            php-version: 8.2
+            coverage: none
+            extensions: gd, xml, dom, curl, pdo, mysqli, mbstring, pdo_mysql, bcmath
+        - uses: actions/setup-node@v4
+          with:
+            node-version: 20
+        - name: build shopware
+          run: |
+            composer setup
+        - uses: actions/upload-artifact@v4
+          with:
+            name: context
+            path: |
+              .
+              !public
+              !**/node_modules
+              !vendor
+              !vendor-bin
+
+    split:
+        needs: build
+        runs-on: ubuntu-latest
+        strategy:
+          matrix:
+            package: [ Administration, Storefront, Core, Elasticsearch ]
+        steps:
+        - uses: actions/download-artifact@v4
+          with:
+            name: context
+        - name: debug platform
+          run: |
+            git log -n 10
+        - name: split 
+          run: |
+            bash .github/split.bash split_repo "${{ matrix.package }}"
+        - name: debug 1
+          run: |
+            P=${{ matrix.package }}
+            git -C repos/${P,,} log -n 10
+        - name: Incldue assets
+          run: |
+            bash .gitlab/bin/split.sh include_assets "${{ matrix.package }}"
+        - name: Require core version
+          run: |
+            bash .gitlab/bin/split.sh require_core_version "${{ matrix.package }}" "${{ github.ref_name }}" ${{ github.ref_type }}
+        - name: Require core version
+          ## todo use tag
+          if: matrix.package != 'Core'
+          env:
+            GIT_AUTHOR_EMAIL: 'shopwarebot@shopware.com'
+            GIT_AUTHOR_NAME: 'shopwareBot'
+            GIT_COMMITTER_EMAIL: 'shopwarebot@shopware.com'
+            GIT_COMMITTER_NAME: 'shopwareBot'
+          run: |
+            bash .gitlab/bin/split.sh commit "${package}" "${{ github.ref_name }} (+ assets)"
+        - name: Diff
+          ## todo use tag
+          if: matrix.package != 'Core'
+          run: |
+            P=${{ matrix.package }}
+            cat repos/${P,,}/composer.json
+            git -C repos/${P,,} log -n 1
+            git -C repos/${P,,} diff @^..
+
+# split into packages
+# build js apps
+# push split packages
+
