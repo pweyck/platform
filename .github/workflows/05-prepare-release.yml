@@ -94,8 +94,36 @@ jobs:
             cat repos/${P,,}/composer.json
             git -C repos/${P,,} log -n 1
             git -C repos/${P,,} diff @^..
+    Draft-release-notes:
+      runs-on: ubuntu-latest
+      # if: github.ref_protected && github.ref_type == "tag" && github.repository == 'shopware/shopware'
+      
 
-# split into packages
-# build js apps
-# push split packages
+    create-sbp-release:
+      runs-on: ubuntu-latest
+      if: github.ref_protected && github.ref_type == 'tag' && github.repository == 'shopware/shopware'
+      strategy:
+        matrix:
+          sbp-environment: [staging, production]
+      env:
+        SBP_API_URL: ${{ secrets[format('sbp_api_url_{0}', matrix.sbp-environment)] }}
+        SBP_TOKEN: ${{ secrets[format('sbp_api_token_{0}', matrix.sbp-environment)] }}
+      steps:
+        - name: Create sbp release
+          run: |
+            bash .gitlab/bin/sbp_release.sh create "${{ github.ref_name }}"
 
+    publish-sbp-release:
+      needs: create-sbp-release
+      if: github.ref_protected && github.ref_type == 'tag' && github.repository == 'shopware/shopware'
+      strategy:
+        matrix:
+          sbp-environment: [staging, production]
+      env:
+        SBP_API_URL: ${{ secrets[format('sbp_api_url_{0}', matrix.sbp-environment)] }}
+        SBP_TOKEN: ${{ secrets[format('sbp_api_token_{0}', matrix.sbp-environment)] }}
+      runs-on: ubuntu-latest
+      steps:
+        - name: Create sbp release
+          run: |
+            bash .gitlab/bin/sbp_release.sh publish "${{ github.ref_name }}"
