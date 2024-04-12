@@ -7,9 +7,7 @@ on:
 jobs:
     build:
         runs-on: ubuntu-latest
-        # if: github.ref_protected && github.repository == 'shopware/shopware'
-        # container:
-        #   image: ghcr.io/catthehacker/ubuntu:act-22.04
+        if: github.ref_protected && github.repository == 'shopware/shopware'
         env:
             SHOPWARE_ADMIN_SKIP_SOURCEMAP_GENERATION: "1"
             DATABASE_URL: mysql://root:root@127.0.0.1:3306/root
@@ -94,10 +92,21 @@ jobs:
             cat repos/${P,,}/composer.json
             git -C repos/${P,,} log -n 1
             git -C repos/${P,,} diff @^..
+    
     Draft-release-notes:
       runs-on: ubuntu-latest
-      # if: github.ref_protected && github.ref_type == "tag" && github.repository == 'shopware/shopware'
-      
+      # if: github.ref_protected && github.ref_type == 'tag' && github.repository == 'shopware/shopware'
+      permissions:
+        contents: write
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+        - name: Draft release
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            DRY_RUN: true
+          run: |
+            bash .gitlab/bin/create_github_release.sh draft "${{ github.ref_name }}"
 
     create-sbp-release:
       runs-on: ubuntu-latest
@@ -109,6 +118,8 @@ jobs:
         SBP_API_URL: ${{ secrets[format('sbp_api_url_{0}', matrix.sbp-environment)] }}
         SBP_TOKEN: ${{ secrets[format('sbp_api_token_{0}', matrix.sbp-environment)] }}
       steps:
+        - name: Checkout
+          uses: actions/checkout@v4
         - name: Create sbp release
           run: |
             bash .gitlab/bin/sbp_release.sh create "${{ github.ref_name }}"
@@ -124,6 +135,8 @@ jobs:
         SBP_TOKEN: ${{ secrets[format('sbp_api_token_{0}', matrix.sbp-environment)] }}
       runs-on: ubuntu-latest
       steps:
-        - name: Create sbp release
+        - name: Checkout
+          uses: actions/checkout@v4
+        - name: Publish sbp release
           run: |
             bash .gitlab/bin/sbp_release.sh publish "${{ github.ref_name }}"
