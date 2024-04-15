@@ -7,7 +7,7 @@ on:
 jobs:
     build:
         runs-on: ubuntu-latest
-        if: github.ref_protected && github.repository == 'shopware/shopware'
+        if: github.ref_protected && github.repository == 'pweyck/platform'
         env:
             SHOPWARE_ADMIN_SKIP_SOURCEMAP_GENERATION: "1"
             DATABASE_URL: mysql://root:root@127.0.0.1:3306/root
@@ -93,9 +93,9 @@ jobs:
             git -C repos/${P,,} log -n 1
             git -C repos/${P,,} diff @^..
     
-    Draft-release-notes:
+    draft-release-notes:
       runs-on: ubuntu-latest
-      # if: github.ref_protected && github.ref_type == 'tag' && github.repository == 'shopware/shopware'
+      if: github.ref_protected && github.ref_type == 'tag' && github.repository == 'pweyck/platform'
       permissions:
         contents: write
       steps:
@@ -104,39 +104,22 @@ jobs:
         - name: Draft release
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            DRY_RUN: true
           run: |
             bash .gitlab/bin/create_github_release.sh draft "${{ github.ref_name }}"
 
     create-sbp-release:
       runs-on: ubuntu-latest
-      if: github.ref_protected && github.ref_type == 'tag' && github.repository == 'shopware/shopware'
+      if: github.ref_protected && github.ref_type == 'tag' && github.repository == 'pweyck/platform'
       strategy:
         matrix:
           sbp-environment: [staging, production]
       env:
         SBP_API_URL: ${{ secrets[format('sbp_api_url_{0}', matrix.sbp-environment)] }}
         SBP_TOKEN: ${{ secrets[format('sbp_api_token_{0}', matrix.sbp-environment)] }}
+        DRY_RUN: '1'
       steps:
         - name: Checkout
           uses: actions/checkout@v4
         - name: Create sbp release
           run: |
             bash .gitlab/bin/sbp_release.sh create "${{ github.ref_name }}"
-
-    publish-sbp-release:
-      needs: create-sbp-release
-      if: github.ref_protected && github.ref_type == 'tag' && github.repository == 'shopware/shopware'
-      strategy:
-        matrix:
-          sbp-environment: [staging, production]
-      env:
-        SBP_API_URL: ${{ secrets[format('sbp_api_url_{0}', matrix.sbp-environment)] }}
-        SBP_TOKEN: ${{ secrets[format('sbp_api_token_{0}', matrix.sbp-environment)] }}
-      runs-on: ubuntu-latest
-      steps:
-        - name: Checkout
-          uses: actions/checkout@v4
-        - name: Publish sbp release
-          run: |
-            bash .gitlab/bin/sbp_release.sh publish "${{ github.ref_name }}"
