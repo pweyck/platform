@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: github.repository == 'shopware/shopware'
+    if: github.repository == 'pweyck/platform'
     env:
       SHOPWARE_ADMIN_SKIP_SOURCEMAP_GENERATION: "1"
       DATABASE_URL: mysql://root:root@127.0.0.1:3306/root
@@ -51,34 +51,30 @@ jobs:
   split:
     needs: build
     runs-on: ubuntu-latest
-    if: github.repository == 'shopware/shopware'
+    if: github.repository == 'pweyck/platform'
     strategy:
       matrix:
         package:
-          - name: Administration
-            remote: https://${{ secrets.MANYREPO_SYNC_USER }}:${{ secrets.MANYREPO_SYNC_TOKEN }}@github.com/shopware/administration
-          - name: Storefront
-            remote: https://${{ secrets.MANYREPO_SYNC_USER }}:${{ secrets.MANYREPO_SYNC_TOKEN }}@github.com/shopware/storefront
-          - name: Core
-            remote: https://${{ secrets.MANYREPO_SYNC_USER }}:${{ secrets.MANYREPO_SYNC_TOKEN }}@github.com/shopware/core
-          - name: Elasticsearch
-            remote: https://${{ secrets.MANYREPO_SYNC_USER }}:${{ secrets.MANYREPO_SYNC_TOKEN }}@github.com/shopware/elasticsearch
+          - Administration
+          - Storefront
+          - Core
+          - Elasticsearch
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: context
       - name: split
         run: |
-          bash .github/split.bash split_repo "${{ matrix.package.name }}"
+          bash .github/split.bash split_repo "${{ matrix.package }}"
       - name: Incldue assets
         run: |
-          bash .github/split.bash include_assets "${{ matrix.package.name }}"
+          bash .github/split.bash include_assets "${{ matrix.package }}"
       - name: Require core version
         run: |
-          bash .github/split.bash require_core_version "${{ matrix.package.name }}" "${{ github.ref_name }}" ${{ github.ref_type }}
+          bash .github/split.bash require_core_version "${{ matrix.package }}" "${{ github.ref_name }}" ${{ github.ref_type }}
       - name: Require core version
         ## todo use tag
-        if: matrix.package.name != 'Core'
+        if: matrix.package != 'Core'
         env:
           GIT_AUTHOR_EMAIL: "shopwarebot@shopware.com"
           GIT_AUTHOR_NAME: "shopwareBot"
@@ -87,20 +83,20 @@ jobs:
         run: |
           bash .github/split.bash commit "${package}" "${{ github.ref_name }} (+ assets)"
       - name: Diff
-        if: matrix.package.name != 'Core'
+        if: matrix.package != 'Core'
         run: |
-          P=${{ matrix.package.name }}
+          P=${{ matrix.package }}
           cat repos/${P,,}/composer.json
           git -C repos/${P,,} log -n 1
           git -C repos/${P,,} diff @^..
       - name: Push
         if: github.ref_type == 'tag' && github.ref_protected
         run: |
-          bash .github/split.bash push "${{ matrix.package.name }}" ${{ matrix.package.remote }} "${{ github.ref_name }}"
+          bash .github/split.bash push "${{ matrix.package }}" https://git:${{ secrets.MANYREPO_SYNC_TOKEN }}@github.com/pweyck/${{ matrix.package }} "${{ github.ref_name }}"
 
   draft-release-notes:
     runs-on: ubuntu-latest
-    if: github.repository == 'shopware/shopware'
+    if: github.repository == 'pweyck/platform'
     permissions:
       contents: write
     steps:
@@ -122,7 +118,7 @@ jobs:
 
   create-sbp-release:
     runs-on: ubuntu-latest
-    if: github.repository == 'shopware/shopware'
+    if: github.repository == 'pweyck/platform'
     strategy:
       matrix:
         sbp-environment: [STAGING, PRODUCTION]
