@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: github.repository == 'shopware/shopware'
+    if: github.repository == 'pweyck/platform'
     env:
       SHOPWARE_ADMIN_SKIP_SOURCEMAP_GENERATION: "1"
       DATABASE_URL: mysql://root:root@127.0.0.1:3306/root
@@ -43,6 +43,8 @@ jobs:
           name: context
           path: |
             .
+            !var/cache
+            !tests/
             !public
             !**/node_modules
             !vendor
@@ -51,56 +53,62 @@ jobs:
   split:
     needs: build
     runs-on: ubuntu-latest
-    if: github.repository == 'shopware/shopware'
+    # we use this image to get an older git version, which does not suffer from a performance regression
+    container: alpine:3.19
+    if: github.repository == 'pweyck/platform'
     strategy:
       matrix:
         package:
-          - name: Administration
-            remote: https://${{ secrets.MANYREPO_SYNC_USER }}:${{ secrets.MANYREPO_SYNC_TOKEN }}@github.com/shopware/administration
-          - name: Storefront
-            remote: https://${{ secrets.MANYREPO_SYNC_USER }}:${{ secrets.MANYREPO_SYNC_TOKEN }}@github.com/shopware/storefront
-          - name: Core
-            remote: https://${{ secrets.MANYREPO_SYNC_USER }}:${{ secrets.MANYREPO_SYNC_TOKEN }}@github.com/shopware/core
-          - name: Elasticsearch
-            remote: https://${{ secrets.MANYREPO_SYNC_USER }}:${{ secrets.MANYREPO_SYNC_TOKEN }}@github.com/shopware/elasticsearch
+          - administration
+          - storefront
+          - core
+          - elasticsearch
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: context
+      - name: Is protected
+        if: github.ref_protected
+        run: echo 'is protected'
+
+      - name: install deps
+        run: apk add git git-subtree bash composer
+      - name: Mark dir as safe
+        run: git config --global --add safe.directory $PWD
       - name: split
         run: |
-          bash .github/split.bash split_repo "${{ matrix.package.name }}"
+          bash .github/bin/split.bash split_repo "${{ matrix.package }}"
+          git config --global --add safe.directory $PWD/repos/${{ matrix.package }}
+          rm -Rf .git
       - name: Incldue assets
         run: |
-          bash .github/split.bash include_assets "${{ matrix.package.name }}"
+          bash .github/bin/split.bash include_assets "${{ matrix.package }}"
       - name: Require core version
         run: |
-          bash .github/split.bash require_core_version "${{ matrix.package.name }}" "${{ github.ref_name }}" ${{ github.ref_type }}
+          bash .github/bin/split.bash require_core_version "${{ matrix.package }}" "${{ github.ref_name }}" ${{ github.ref_type }}
       - name: Require core version
-        ## todo use tag
-        if: matrix.package.name != 'Core'
+        if: matrix.package != 'core'
         env:
           GIT_AUTHOR_EMAIL: "shopwarebot@shopware.com"
           GIT_AUTHOR_NAME: "shopwareBot"
           GIT_COMMITTER_EMAIL: "shopwarebot@shopware.com"
           GIT_COMMITTER_NAME: "shopwareBot"
         run: |
-          bash .github/split.bash commit "${package}" "${{ github.ref_name }} (+ assets)"
+          bash .github/bin/split.bash commit "${{ matrix.package }}" "${{ github.ref_name }} (+ assets)"
       - name: Diff
-        if: matrix.package.name != 'Core'
+        if: matrix.package != 'core'
         run: |
-          P=${{ matrix.package.name }}
-          cat repos/${P,,}/composer.json
-          git -C repos/${P,,} log -n 1
-          git -C repos/${P,,} diff @^..
+          cat repos/${{ matrix.package }}/composer.json
+          git -C repos/${{ matrix.package }} log -n 1
+          git -C repos/${{ matrix.package }} diff @^..
       - name: Push
         if: github.ref_type == 'tag' && github.ref_protected
         run: |
-          bash .github/split.bash push "${{ matrix.package.name }}" ${{ matrix.package.remote }} "${{ github.ref_name }}"
+          bash .github/bin/split.bash push "${{ matrix.package }}" https://git:${{ secrets.MANYREPO_SYNC_TOKEN }}@github.com/pweyck/${{ matrix.package }} "${{ github.ref_name }}"
 
   draft-release-notes:
     runs-on: ubuntu-latest
-    if: github.repository == 'shopware/shopware'
+    if: github.repository == 'pweyck/platform'
     permissions:
       contents: write
     steps:
@@ -122,7 +130,7 @@ jobs:
 
   create-sbp-release:
     runs-on: ubuntu-latest
-    if: github.repository == 'shopware/shopware'
+    if: github.repository == 'pweyck/platform'
     strategy:
       matrix:
         sbp-environment: [STAGING, PRODUCTION]
