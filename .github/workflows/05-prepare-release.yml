@@ -65,6 +65,11 @@ jobs:
           - storefront
           - core
           - elasticsearch
+    env:
+      GIT_AUTHOR_EMAIL: "shopwarebot@shopware.com"
+      GIT_AUTHOR_NAME: "shopwareBot"
+      GIT_COMMITTER_EMAIL: "shopwarebot@shopware.com"
+      GIT_COMMITTER_NAME: "shopwareBot"
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -90,11 +95,6 @@ jobs:
           bash .github/bin/split.bash require_core_version "${{ matrix.package }}" "${{ github.ref_name }}" ${{ github.ref_type }}
       - name: Commit assets
         if: matrix.package != 'core'
-        env:
-          GIT_AUTHOR_EMAIL: "shopwarebot@shopware.com"
-          GIT_AUTHOR_NAME: "shopwareBot"
-          GIT_COMMITTER_EMAIL: "shopwarebot@shopware.com"
-          GIT_COMMITTER_NAME: "shopwareBot"
         run: |
           bash .github/bin/split.bash commit "${{ matrix.package }}" "${{ github.ref_name }} (+ assets)"
       - name: Tag commit
