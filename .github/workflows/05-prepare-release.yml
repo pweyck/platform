@@ -104,7 +104,7 @@ jobs:
           git -C repos/${{ matrix.package }} log -n 1
           git -C repos/${{ matrix.package }} diff @^..
       - name: Push
-        if: github.ref_type == 'tag' && github.ref_protected
+        if: github.ref_type == 'tag'
         run: |
           bash .github/bin/split.bash push "${{ matrix.package }}" https://git:${{ secrets.MANYREPO_SYNC_TOKEN }}@github.com/pweyck/${{ matrix.package }} "${{ github.ref_name }}"
 
@@ -125,7 +125,7 @@ jobs:
         run: |
           bash .github/bin/create_github_release.bash draft "${{ github.ref_name }}"
       - name: Draft release
-        if: github.ref_type == 'tag' && github.ref_protected
+        if: github.ref_type == 'tag'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -137,7 +137,7 @@ jobs:
     if: github.repository == 'pweyck/platform'
     strategy:
       matrix:
-        sbp-environment: [STAGING, PRODUCTION]
+        sbp-environment: [STAGING, STAGING]
     env:
       SBP_API_URL: ${{ secrets[format('SBP_API_URL_{0}', matrix.sbp-environment)] }}
       SBP_TOKEN: ${{ secrets[format('SBP_API_TOKEN_{0}', matrix.sbp-environment)] }}
@@ -151,6 +151,6 @@ jobs:
         run: |
           bash .github/bin/sbp_release.bash create "${{ github.ref_name }}"
       - name: Create sbp release
-        if: github.ref_type == 'tag' && github.ref_protected
+        if: github.ref_type == 'tag'
         run: |
           bash .github/bin/sbp_release.bash create "${{ github.ref_name }}"
