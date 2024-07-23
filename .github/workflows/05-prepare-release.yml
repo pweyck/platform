@@ -97,6 +97,11 @@ jobs:
           GIT_COMMITTER_NAME: "shopwareBot"
         run: |
           bash .github/bin/split.bash commit "${{ matrix.package }}" "${{ github.ref_name }} (+ assets)"
+      - name: Tag commit
+        if: github.ref_type == 'tag'
+        run: |
+          bash .github/bin/split.bash tag "${{ matrix.package }}" "${{ github.ref_name }}"
+
       - name: Diff
         if: matrix.package != 'core'
         run: |
@@ -106,7 +111,7 @@ jobs:
       - name: Push
         if: github.ref_type == 'tag'
         run: |
-          bash .github/bin/split.bash push "${{ matrix.package }}" https://git:${{ secrets.MANYREPO_SYNC_TOKEN }}@github.com/pweyck/${{ matrix.package }} "${{ github.ref_name }}"
+          bash .github/bin/split.bash push "${{ matrix.package }}" https://git:${{ secrets.MANYREPO_SYNC_TOKEN }}@github.com/pweyck "${{ github.ref_name }}"
 
   draft-release-notes:
     needs: split
